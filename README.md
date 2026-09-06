@@ -13,8 +13,10 @@ Most major language technologies under-serve Nigerian languages. High-quality pa
 ## Current MVP
 
 - English ↔ Urhobo translation UI
-- Provider abstraction (mock by default, OpenAI / Anthropic / xAI when configured)
-- Contribution form for translation pairs (with consent for research use)
+- Provider abstraction (mock, Google Gemini, OpenAI, Anthropic, xAI)
+- Ordered provider fallbacks
+- Listen button (browser speech approximation for pronunciation)
+- Contribution form for translation pairs and pronunciation notes
 - Clean TypeScript / Next.js / Tailwind foundation
 - Language-agnostic types so more Nigerian languages can be added later
 
@@ -30,7 +32,7 @@ Most major language technologies under-serve Nigerian languages. High-quality pa
 ## Architecture (short)
 
 - `apps/web` – Next.js App Router UI + API routes
-- `packages/translation` – `TranslationProvider` interface + mock / OpenAI / Anthropic / xAI implementations
+- `packages/translation` – `TranslationProvider` interface + providers
 - `packages/data` – Zod schemas for contributions and future dataset records
 - `packages/shared` – language constants
 - `data/` – examples and future exports
@@ -50,14 +52,15 @@ Open http://localhost:3000.
 
 ### Environment variables
 
-| Variable               | Description                                      | Default   |
-|------------------------|--------------------------------------------------|-----------|
-| `TRANSLATION_PROVIDERS`| Comma-separated ordered fallback list            | `mock`    |
-| `XAI_API_KEY`          | xAI / Grok                                       | –         |
-| `ANTHROPIC_API_KEY`    | Anthropic / Claude                               | –         |
-| `OPENAI_API_KEY`       | OpenAI or compatible                             | –         |
+| Variable                | Description                           | Default        |
+|-------------------------|---------------------------------------|----------------|
+| `TRANSLATION_PROVIDERS` | Ordered fallback list                 | `google,mock`  |
+| `GOOGLE_API_KEY`        | Google Gemini (free tier available)   | –              |
+| `XAI_API_KEY`           | xAI / Grok                            | –              |
+| `ANTHROPIC_API_KEY`     | Anthropic / Claude                    | –              |
+| `OPENAI_API_KEY`        | OpenAI or compatible                  | –              |
 
-Never commit real API keys. Use `.env.local`.
+Never commit real API keys. Use `.env.local` locally, or Vercel Environment Variables in production.
 
 ## How translation providers work
 
@@ -65,6 +68,7 @@ The app never hard-codes a single vendor. It calls `createTranslationProvider()`
 
 Supported providers today:
 - `mock` – local placeholder (no key needed)
+- `google` / `gemini` – Google Gemini
 - `openai` – OpenAI or compatible endpoint
 - `anthropic` / `claude` – Anthropic Claude
 - `xai` / `grok` – xAI Grok (OpenAI-compatible)
@@ -72,14 +76,10 @@ Supported providers today:
 Set an ordered fallback list with:
 
 ```bash
-TRANSLATION_PROVIDERS=xai,anthropic,openai,mock
+TRANSLATION_PROVIDERS=google,mock
 ```
 
 The first provider that succeeds is used. If one fails (rate limit, missing key, outage), the next is tried automatically.
-
-API keys stay in environment variables only (`XAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`). Never commit real secrets.
-
-Adding a local or custom model later means implementing the same `TranslationProvider` interface and registering it in the factory.
 
 ## How contributions work
 
@@ -88,9 +88,10 @@ Users can submit:
 - source language / target language
 - source text / translated text
 - optional context, dialect/location, name
+- pronunciation notes (voice mode)
 - consent for research use
 
-Records are stored with status `pending`. Later phases will add review, acceptance, and dataset export. Voice contributions are designed in the schema but not implemented yet.
+Records are stored with status `pending`. Later phases will add review, acceptance, audio upload, and dataset export.
 
 ## Dataset philosophy
 
