@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 export function ContributionForm() {
   const languages = getEnabledLanguages();
   const searchParams = useSearchParams();
+  const isVoiceMode = searchParams.get("mode") === "voice";
 
   const [sourceLang, setSourceLang] = useState("en");
   const [targetLang, setTargetLang] = useState("urhobo");
@@ -30,7 +31,14 @@ export function ContributionForm() {
     if (t) setTargetText(t);
     if (sl) setSourceLang(sl);
     if (tl) setTargetLang(tl);
-  }, [searchParams]);
+    if (isVoiceMode) {
+      setContext((prev) =>
+        prev
+          ? prev
+          : "Pronunciation note: (describe how this should sound, stress, tone, or dialect)")
+      );
+    }
+  }, [searchParams, isVoiceMode]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -59,7 +67,12 @@ export function ContributionForm() {
         throw new Error(data.error || "Submission failed");
       }
 
-      setSuccess(data.message || "Thank you for your contribution.");
+      setSuccess(
+        data.message ||
+          (isVoiceMode
+            ? "Thank you. Pronunciation notes received. Audio upload is coming next."
+            : "Thank you for your contribution.")
+      );
       setSourceText("");
       setTargetText("");
       setContext("");
@@ -75,6 +88,14 @@ export function ContributionForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mx-auto w-full max-w-2xl space-y-6">
+      {isVoiceMode && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+          <strong>Pronunciation feedback.</strong> Browser speech is only an approximation for
+          Urhobo. Add clear notes on how this should sound (tone, stress, dialect). Short audio
+          recording upload is planned next so native speakers can contribute real clips.
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-sm font-medium text-stone-700">
           Source language
@@ -131,12 +152,16 @@ export function ContributionForm() {
       </label>
 
       <label className="flex flex-col gap-1 text-sm font-medium text-stone-700">
-        Context (optional)
+        {isVoiceMode ? "Pronunciation notes" : "Context (optional)"}
         <textarea
-          rows={2}
+          rows={3}
           value={context}
           onChange={(e) => setContext(e.target.value)}
-          placeholder="When or how this phrase is used…"
+          placeholder={
+            isVoiceMode
+              ? "How should this sound? Tone, stress, dialect, similar words…"
+              : "When or how this phrase is used…"
+          }
           className="rounded-xl border border-stone-300 bg-white px-4 py-3 focus:border-emerald-600 focus:outline-none focus:ring-1 focus:ring-emerald-600"
         />
       </label>
@@ -191,7 +216,7 @@ export function ContributionForm() {
       )}
 
       <Button type="submit" loading={loading} disabled={!consent || !sourceText.trim() || !targetText.trim()}>
-        Submit contribution
+        {isVoiceMode ? "Submit pronunciation notes" : "Submit contribution"}
       </Button>
     </form>
   );
