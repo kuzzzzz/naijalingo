@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getEnabledLanguages } from "@/lib/languages";
+import { canSpeak, speakText, stopSpeaking } from "@/lib/speech";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 
@@ -23,6 +24,7 @@ export function Translator() {
   const [result, setResult] = useState<TranslationResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [speaking, setSpeaking] = useState(false);
 
   function swapLanguages() {
     setSourceLang(targetLang);
@@ -38,6 +40,8 @@ export function Translator() {
     setLoading(true);
     setError(null);
     setResult(null);
+    stopSpeaking();
+    setSpeaking(false);
 
     try {
       const res = await fetch("/api/translate", {
@@ -66,12 +70,32 @@ export function Translator() {
     setText("");
     setResult(null);
     setError(null);
+    stopSpeaking();
+    setSpeaking(false);
   }
 
   function handleCopy() {
     if (result?.translatedText) {
       navigator.clipboard.writeText(result.translatedText);
     }
+  }
+
+  function handleListen() {
+    if (!result?.translatedText) return;
+    if (speaking) {
+      stopSpeaking();
+      setSpeaking(false);
+      return;
+    }
+    if (!canSpeak()) {
+      setError("Speech is not supported in this browser.");
+      return;
+    }
+    setSpeaking(true);
+    speakText(result.translatedText, result.targetLanguage);
+    // Approximate end of speech for short phrases
+    const ms = Math.min(15000, Math.max(1500, result.translatedText.length * 80));
+    window.setTimeout(() => setSpeaking(false), ms);
   }
 
   return (
@@ -152,9 +176,14 @@ export function Translator() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-stone-500">
               Translation
             </h2>
-            <Button variant="ghost" onClick={handleCopy} className="!px-2 !py-1 text-xs">
-              Copy
-            </Button>
+            <div className="flex gap-1">
+              <Button variant="ghost" onClick={handleListen} className="!px-2 !py-1 text-xs">
+                {speaking ? "Stop" : "Listen"}
+              </Button>
+              <Button variant="ghost" onClick={handleCopy} className="!px-2 !py-1 text-xs">
+                Copy
+              </Button>
+            </div>
           </div>
           <p className="whitespace-pre-wrap text-lg leading-relaxed text-stone-900">
             {result.translatedText}
@@ -163,14 +192,23 @@ export function Translator() {
             <p className="text-sm text-stone-600 italic">{result.notes}</p>
           )}
           <p className="text-xs text-stone-500">
-            Translations are machine-assisted and not authoritative. Native speakers: please help improve them.
+            Translations are machine-assisted and not authoritative. Browser speech is only an
+            approximation — especially for Urhobo. Native speaker recordings will improve this.
           </p>
-          <Link
-            href={`/contribute?source=${encodeURIComponent(text)}&target=${encodeURIComponent(result.translatedText)}&sourceLang=${sourceLang}&targetLang=${targetLang}`}
-            className="inline-block text-sm font-medium text-emerald-700 hover:underline"
-          >
-            Improve this translation →
-          </Link>
+          <div className="flex flex-wrap gap-4 text-sm font-medium">
+            <Link
+              href={`/contribute?source=${encodeURIComponent(text)}&target=${encodeURIComponent(result.translatedText)}&sourceLang=${sourceLang}&targetLang=${targetLang}`}
+              className="text-emerald-700 hover:underline"
+            >
+              Improve this translation →
+            </Link>
+            <Link
+              href={`/contribute?mode=voice&source=${encodeURIComponent(text)}&target=${encodeURIComponent(result.translatedText)}&sourceLang=${sourceLang}&targetLang=${targetLang}`}
+              className="text-emerald-700 hover:underline"
+            >
+              Suggest better pronunciation →
+            </Link>
+          </div>
         </div>
       )}
     </div>
