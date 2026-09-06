@@ -1,9 +1,8 @@
 import type { TranslationProvider, TranslationRequest, TranslationResult } from "../types";
 
 /**
- * Google Gemini provider.
- * Uses the Generative Language API. Good free-tier option for MVP.
- * Key: GOOGLE_API_KEY or GEMINI_API_KEY
+ * Google Gemini provider (Generative Language API).
+ * Env: GOOGLE_API_KEY or GEMINI_API_KEY
  */
 export class GoogleTranslationProvider implements TranslationProvider {
   name = "google";
@@ -13,12 +12,18 @@ export class GoogleTranslationProvider implements TranslationProvider {
   private baseUrl: string;
 
   constructor(opts?: { apiKey?: string; model?: string; baseUrl?: string }) {
-    this.apiKey =
+    this.apiKey = (
       opts?.apiKey ??
       process.env.GOOGLE_API_KEY ??
       process.env.GEMINI_API_KEY ??
-      "";
-    this.model = opts?.model ?? process.env.GOOGLE_MODEL ?? process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
+      ""
+    ).trim();
+    this.model = (
+      opts?.model ??
+      process.env.GOOGLE_MODEL ??
+      process.env.GEMINI_MODEL ??
+      "gemini-2.0-flash"
+    ).trim();
     this.baseUrl = (
       opts?.baseUrl ??
       process.env.GOOGLE_BASE_URL ??
@@ -40,29 +45,32 @@ Rules:
 - Preserve meaning, tone, and register.
 - Prefer natural sentence structure used by native speakers.
 - Respect cultural context; avoid inventing words or phrases that do not exist in the language.
-- If you are uncertain about a word, dialect form, or cultural nuance, say so briefly in a short note and still give your best attempt.
-- Never invent Urhobo that a native speaker would not recognize.
-- Do not claim the translation is authoritative. Native speaker review is essential.
+- If you are uncertain, say so briefly in notes and still give your best attempt.
+- Never invent Urhobo a native speaker would not recognize.
+- Do not claim the translation is authoritative.
 
-Respond with ONLY a JSON object of this shape (no markdown fences):
+Respond with ONLY a JSON object (no markdown fences):
 {
   "translatedText": "...",
   "confidence": "high" | "medium" | "low" | "unknown",
-  "notes": "optional short note about uncertainty or dialect"
+  "notes": "optional short note"
 }`;
 
-    const userPrompt = `Translate the following text from ${sourceLanguage} to ${targetLanguage}.
+    const userPrompt = `Translate from ${sourceLanguage} to ${targetLanguage}.
 
 Text:
 """
 ${text}
 """`;
 
-    const url = `${this.baseUrl}/models/${this.model}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
+    const url = `${this.baseUrl}/models/${this.model}:generateContent`;
 
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": this.apiKey,
+      },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: systemPrompt }] },
         contents: [{ role: "user", parts: [{ text: userPrompt }] }],
@@ -73,16 +81,27 @@ ${text}
       }),
     });
 
+    const raw = await res.text();
     if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      throw new Error(`Google Gemini API error ${res.status}: ${errText.slice(0, 200)}`);
+      throw new Error(`Google Gemini API error ${res.status}: ${raw.slice(0, 300)}`);
     }
 
-    const data = (await res.json()) as {
+    let data: {
       candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      error?: { message?: string };
     };
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error(`Google Gemini returned non-JSON: ${raw.slice(0, 200)}`);
+    }
 
-    const content = data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
+    if (data.error?.message) {
+      throw new Error(`Google Gemini API: ${data.error.message}`);
+    }
+
+    const content =
+      data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
     if (!content.trim()) {
       throw new Error("Empty response from Google Gemini API");
     }
