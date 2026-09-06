@@ -6,8 +6,12 @@ import { XAITranslationProvider } from "./xai";
 import { GoogleTranslationProvider } from "./google";
 import { FallbackTranslationProvider } from "./fallback";
 
+function normalizeName(name: string): string {
+  return name.toLowerCase().trim().replace(/^['"]|['"]$/g, "");
+}
+
 function createSingleProvider(name: string): TranslationProvider {
-  switch (name.toLowerCase().trim()) {
+  switch (normalizeName(name)) {
     case "openai":
       return new OpenAITranslationProvider();
     case "anthropic":
@@ -44,10 +48,10 @@ function hasGoogleKey(): boolean {
  * Build the active translation provider.
  *
  * Priority:
- * 1. TRANSLATION_PROVIDERS – comma-separated list (e.g. "google,mock")
- * 2. TRANSLATION_PROVIDER – single provider name
- * 3. If GOOGLE_API_KEY / GEMINI_API_KEY is set → google, then mock
- * 4. Default: mock
+ * 1. TRANSLATION_PROVIDERS – comma-separated list
+ * 2. TRANSLATION_PROVIDER – single name
+ * 3. GOOGLE_API_KEY present → google only (errors surface; no silent mock)
+ * 4. mock
  */
 export function createTranslationProvider(): TranslationProvider {
   const list = process.env.TRANSLATION_PROVIDERS?.trim();
@@ -58,26 +62,27 @@ export function createTranslationProvider(): TranslationProvider {
       .map(tryCreateProvider)
       .filter((p): p is TranslationProvider => p !== null);
 
+    // If user asked for real providers but only mock could be built, still use mock
     if (providers.length === 0) {
       return new MockTranslationProvider();
     }
     if (providers.length === 1) {
       return providers[0];
     }
+
+    // Prefer not to hide real-provider failures behind mock when a paid/free API key exists.
+    // Keep mock in the chain only if it's explicitly listed AND there is at least one other provider.
     return new FallbackTranslationProvider(providers);
   }
 
-  const single = process.env.TRANSLATION_PROVIDER?.trim().toLowerCase();
+  const single = process.env.TRANSLATION_PROVIDER?.trim();
   if (single) {
     return tryCreateProvider(single) ?? new MockTranslationProvider();
   }
 
-  // Auto-pick Google when a key is present (common Vercel setup)
   if (hasGoogleKey()) {
-    const google = tryCreateProvider("google");
-    if (google) {
-      return new FallbackTranslationProvider([google, new MockTranslationProvider()]);
-    }
+    // No silent mock fallback — if Google fails, the API returns the real error.
+    return createSingleProvider("google");
   }
 
   return new MockTranslationProvider();
