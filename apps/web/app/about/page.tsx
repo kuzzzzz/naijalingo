@@ -25,8 +25,9 @@ export default function AboutPage() {
         and reviews are the most valuable part of this work.
       </p>
       <p className="text-stone-700 leading-relaxed">
-        See the repository README and docs for architecture, roadmap, and how to run the project
-        locally.
+        Translation runs through a provider layer (Hugging Face, Google, and others) so we can swap
+        backends without rewriting the app. See the repository README and docs for architecture,
+        roadmap, and how to run the project locally.
       </p>
     </div>
   );
