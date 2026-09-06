@@ -4,6 +4,7 @@ import { OpenAITranslationProvider } from "./openai";
 import { AnthropicTranslationProvider } from "./anthropic";
 import { XAITranslationProvider } from "./xai";
 import { GoogleTranslationProvider } from "./google";
+import { HuggingFaceTranslationProvider } from "./huggingface";
 import { FallbackTranslationProvider } from "./fallback";
 
 function normalizeName(name: string): string {
@@ -23,6 +24,9 @@ function createSingleProvider(name: string): TranslationProvider {
     case "google":
     case "gemini":
       return new GoogleTranslationProvider();
+    case "huggingface":
+    case "hf":
+      return new HuggingFaceTranslationProvider();
     case "mock":
       return new MockTranslationProvider();
     default:
@@ -44,14 +48,17 @@ function hasGoogleKey(): boolean {
   return Boolean(process.env.GOOGLE_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim());
 }
 
+function hasHuggingFaceKey(): boolean {
+  return Boolean(process.env.HF_TOKEN?.trim() || process.env.HUGGINGFACE_API_KEY?.trim());
+}
+
 /**
  * Build the active translation provider.
  *
  * Priority:
  * 1. TRANSLATION_PROVIDERS – comma-separated list
  * 2. TRANSLATION_PROVIDER – single name
- * 3. GOOGLE_API_KEY present → google only (errors surface; no silent mock)
- * 4. mock
+ * 3. Auto: google if key, else huggingface if token, else mock
  */
 export function createTranslationProvider(): TranslationProvider {
   const list = process.env.TRANSLATION_PROVIDERS?.trim();
@@ -62,16 +69,12 @@ export function createTranslationProvider(): TranslationProvider {
       .map(tryCreateProvider)
       .filter((p): p is TranslationProvider => p !== null);
 
-    // If user asked for real providers but only mock could be built, still use mock
     if (providers.length === 0) {
       return new MockTranslationProvider();
     }
     if (providers.length === 1) {
       return providers[0];
     }
-
-    // Prefer not to hide real-provider failures behind mock when a paid/free API key exists.
-    // Keep mock in the chain only if it's explicitly listed AND there is at least one other provider.
     return new FallbackTranslationProvider(providers);
   }
 
@@ -81,8 +84,11 @@ export function createTranslationProvider(): TranslationProvider {
   }
 
   if (hasGoogleKey()) {
-    // No silent mock fallback — if Google fails, the API returns the real error.
     return createSingleProvider("google");
+  }
+
+  if (hasHuggingFaceKey()) {
+    return createSingleProvider("huggingface");
   }
 
   return new MockTranslationProvider();
@@ -93,4 +99,5 @@ export { OpenAITranslationProvider } from "./openai";
 export { AnthropicTranslationProvider } from "./anthropic";
 export { XAITranslationProvider } from "./xai";
 export { GoogleTranslationProvider } from "./google";
+export { HuggingFaceTranslationProvider } from "./huggingface";
 export { FallbackTranslationProvider } from "./fallback";
