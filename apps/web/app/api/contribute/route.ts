@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { TranslationContributionSchema } from "@naijalingo/data";
+import { TranslationContributionSchema } from "@/lib/contribution";
 import { addContribution } from "@/lib/store";
 
 export async function POST(req: NextRequest) {
