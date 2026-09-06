@@ -13,16 +13,9 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./*"],
-      "@naijalingo/shared": ["../../packages/shared/index.ts"],
-      "@naijalingo/translation": ["../../packages/translation/index.ts"],
-      "@naijalingo/data": ["../../packages/data/index.ts"]
+      "@/*": ["./*"]
     }
   },
   "include": [
