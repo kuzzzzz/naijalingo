@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createTranslationProvider, TranslationRequestSchema } from "@naijalingo/translation";
+import { createTranslationProvider, TranslationRequestSchema } from "@/lib/translation";
 
 export async function POST(req: NextRequest) {
   try {
