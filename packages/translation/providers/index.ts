@@ -3,6 +3,7 @@ import { MockTranslationProvider } from "./mock";
 import { OpenAITranslationProvider } from "./openai";
 import { AnthropicTranslationProvider } from "./anthropic";
 import { XAITranslationProvider } from "./xai";
+import { GoogleTranslationProvider } from "./google";
 import { FallbackTranslationProvider } from "./fallback";
 
 function createSingleProvider(name: string): TranslationProvider {
@@ -15,6 +16,9 @@ function createSingleProvider(name: string): TranslationProvider {
     case "xai":
     case "grok":
       return new XAITranslationProvider();
+    case "google":
+    case "gemini":
+      return new GoogleTranslationProvider();
     case "mock":
       return new MockTranslationProvider();
     default:
@@ -26,7 +30,7 @@ function createSingleProvider(name: string): TranslationProvider {
  * Build the active translation provider.
  *
  * Priority:
- * 1. TRANSLATION_PROVIDERS – comma-separated list (e.g. "xai,anthropic,openai,mock")
+ * 1. TRANSLATION_PROVIDERS – comma-separated list (e.g. "google,xai,openai,mock")
  * 2. TRANSLATION_PROVIDER – single provider name
  * 3. Default: mock
  */
@@ -53,4 +57,5 @@ export { MockTranslationProvider } from "./mock";
 export { OpenAITranslationProvider } from "./openai";
 export { AnthropicTranslationProvider } from "./anthropic";
 export { XAITranslationProvider } from "./xai";
+export { GoogleTranslationProvider } from "./google";
 export { FallbackTranslationProvider } from "./fallback";
