@@ -1,4 +1,4 @@
-import type { TranslationContribution } from "@naijalingo/data";
+import type { TranslationContribution } from "@/lib/contribution";
 import { randomUUID } from "crypto";
 
 /**
